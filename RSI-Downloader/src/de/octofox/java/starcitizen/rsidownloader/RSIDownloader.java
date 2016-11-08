@@ -12,14 +12,17 @@ import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+
+import de.octofox.java.starcitizen.rsidownloader.gui.RSI_Gui;
+import de.octofox.java.starcitizen.rsidownloader.helper.FileTools;
+import de.octofox.java.starcitizen.rsidownloader.helper.RandomString;
+import de.octofox.java.starcitizen.rsidownloader.helper.URLTools;
+import de.octofox.java.starcitizen.rsidownloader.helper.Validate;
 
 /**
  * 
@@ -29,7 +32,6 @@ import org.jsoup.select.Elements;
 public class RSIDownloader {
 
 	private static final int BYTELEN = 2048;
-	private static final String ALNUM_SEQ = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 	private static final String HELP = 	"\nRSI Gallery Downloader by FoXFTW\n" +
 										"Example: java -jar rsi.jar " +
@@ -49,63 +51,101 @@ public class RSIDownloader {
 										"Version: 0.0.1";	
 	
 	private static final String CWD = System.getProperty("user.dir");
-	private static final String RSI_PROTO = "https://";
-	private static final String RSIURL = "robertsspaceindustries.com/";
-	private static final String SHIPURL = "https://star-citizen.wiki/Benutzer:FoXFTW/Ships.txt";
-	private static final String SOURCE_FILE = "ships.txt";
+
+	public static final String SHIPURL = "https://star-citizen.wiki/Benutzer:FoXFTW/Ships.txt";
+	public static final String SOURCE_FILE = "ships.txt";
 	
+	private String saveFolder;
+		
 	/**
 	 * Entrypoint
 	 * @param args cmd args
 	 */
 	public static void main(String[] args) {
-		switch (args.length) {
-		case 0:
-			RSIDownloader.startDownloadbyFile(SOURCE_FILE, "");
-			break;
-		
-		case 1:
-			switch (args[0].toLowerCase()) {
-			case "help":
-				System.out.println(RSIDownloader.HELP);				
-				break;
-				
-			case "online":
-				RSIDownloader.startDownloadbyURL(RSIDownloader.SHIPURL + "?action=raw", "");
-				break;
-				
-			default:
-				RSIDownloader.startDownloadbyFile(SOURCE_FILE, args[0]);
-				break;
+		if (args.length == 0) {
+			RSI_Gui.main(null);
+		} else {
+			RSIDownloader dl = new RSIDownloader();
+			if (args.length == 2) {
+				dl.setSaveFolder(args[1]);
+				if (args[0].toLowerCase().equals("online")) {
+					dl.startDownload(dl.getURLsFromWeb(RSIDownloader.SHIPURL + "?action=raw"));
+				} else {
+					String[] argList = {args[0]};
+					dl.startDownload(argList);
+				}
+			} else if(args.length == 1) {
+				if (args[0].toLowerCase().equals("online")) {
+					dl.startDownload(dl.getURLsFromWeb(RSIDownloader.SHIPURL + "?action=raw"));
+				} else {
+					if (args[0].toLowerCase().equals("help")) {
+						System.out.println(RSIDownloader.HELP);		
+					} else {
+						dl.setSaveFolder(args[0]);
+						dl.startDownload(dl.getURLsFromFile(RSIDownloader.SOURCE_FILE));	
+					}
+				}
+			} else {
+				System.out.println(RSIDownloader.HELP);
 			}
-			break;
-			
-		case 2:
-			switch (args[0].toLowerCase()) {
-			case "online":
-				RSIDownloader.startDownloadbyURL(RSIDownloader.SHIPURL + "?action=raw", args[1]);
-				break;
-				
-			default:
-				RSIDownloader.downloadImage(args[0], args[1]);
-				break;
-			}			
-			break;
-
-		default:
-			System.out.println(RSIDownloader.HELP);
-			break;
 		}
 	}
+
 	
-	/**
-	 * Downloads all urls from ships.txt
-	 * @param saveFolder main folder for all saved ships
-	 */
-	private static void startDownloadbyFile(String sourceFile, String saveFolder) {
-		saveFolder = parseSaveFolder(saveFolder);
+	public RSIDownloader() {
+		this.setSaveFolder("");
+	}
+	
+	
+	public RSIDownloader(String saveFolderPath) {
+		this.setSaveFolder(saveFolderPath);
+	}
+	
+
+	public void setSaveFolder(String path) {
+		this.saveFolder = RSIDownloader.CWD + (path.isEmpty() ? "" : "/" + path) + "/";
+	}
+	
+	
+	public String[] getURLsFromFile(String sourceFile) {
+		try {
+			BufferedReader br = new BufferedReader(new FileReader(this.saveFolder + sourceFile));
+		    List<String> shipURLs = this.makeListFromReader(br);
+		    String[] urls = new String[shipURLs.size()];
+		    shipURLs.toArray(urls);
+		    return urls;
+		} catch (Exception e) {
+			System.err.println(RSIDownloader.SOURCE_FILE + " is missing");
+			System.out.println(RSIDownloader.HELP);
+		}
+		return null;
+	}
+	
+	
+	public String[] getURLsFromWeb(String sourceURL) {
+		try {
+			URL u = new URL(sourceURL);
+			URLConnection conn = u.openConnection();
+			BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+		    List<String> shipURLs = this.makeListFromReader(br);
+		    String[] urls = new String[shipURLs.size()];
+		    shipURLs.toArray(urls);
+		    return urls;
+		} catch (MalformedURLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+
+	private List<String> makeListFromReader(BufferedReader br) {
 		List<String> shipURLs = new ArrayList<String>();
-		try (BufferedReader br = new BufferedReader(new FileReader(RSIDownloader.CWD + "/" + sourceFile))) {
+		
+		try {
 		    String line = null;
 		    do {
 		        line = br.readLine();
@@ -114,199 +154,56 @@ public class RSIDownloader {
 				}
 		    } while (line != null);
 
-		    String[] urls = new String[shipURLs.size()];
-		    shipURLs.toArray(urls);
-		    RSIDownloader.startDownload(urls, saveFolder);
-		} catch (FileNotFoundException e) {
-			System.err.println(RSIDownloader.SOURCE_FILE + " is missing");
-			System.out.println(RSIDownloader.HELP);
+		    return shipURLs;
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-	}
-	
-	/**
-	 * Loads the shiplist from the given url
-	 * @param sourceURL URL to load
-	 * @param saveFolder folder to save to
-	 */
-	private static void startDownloadbyURL(String sourceURL, String saveFolder) {
-		saveFolder = parseSaveFolder(saveFolder);
-		List<String> shipURLs = new ArrayList<String>();
-		try {
-			URL u = new URL(sourceURL);
-			URLConnection conn = u.openConnection();
-			BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-			
-			String line;
-		    do {
-		        line = in.readLine();
-		        if (null != line && !line.trim().isEmpty()) {
-		        	shipURLs.add(line);
-				}
-		    } while (line != null);
-			in.close();	    
-	
-		    String[] urls = new String[shipURLs.size()];
-		    shipURLs.toArray(urls);
-		    RSIDownloader.startDownload(urls, saveFolder);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+		return null;
 	}
 
-	/**
-	 * adds a pre slash if folder is not empty
-	 * @param saveFolder
-	 * @return
-	 */
-	private static String parseSaveFolder(String saveFolder) {
-		saveFolder = (saveFolder.isEmpty() ? "" : "/" + saveFolder);
-		return saveFolder;
-	}
-	
+
 	/**
 	 * starts the download for each array entry
 	 * @param urlList
 	 * @param saveFolder
 	 */
-	private static void startDownload(String[] urlList, String saveFolder) {
+	public void startDownload(String[] urlList) {
 		for (String string : urlList) {
-	        String folder = RSIDownloader.getLastSubstring(string);
+	        String folder = URLTools.getLastSubstring(string);
 			if (folder != null) {
-				if (!RSIDownloader.downloadImage(string, saveFolder + "/" + folder)) {
+				if (!this.downloadImages(string, this.saveFolder + folder)) {
 					System.err.println("Error loading " + string + " - " + folder);
 				}		        						
 			}	
 		}			
 	}
 
-	/**
-	 * sets the filepath, and starts the saving process
-	 * @param imageURL URL of the image
-	 * @param folder foldername
-	 * @return true if download succeded false on failure
-	 */
-	private static boolean downloadImage(String imageURL, String folder) {
-		String savePath = RSIDownloader.CWD + "/" + folder;
+
+	private boolean downloadImages(String galleryURL, String savePath) {
 		File saveFolder = new File(savePath);
 
-		if (isValidUrl(imageURL) && createSaveFolderIfNotExistent(saveFolder)) {
-			Document doc = getURLContent(imageURL);
+		if (Validate.url(galleryURL) && FileTools.createSaveFolderIfNotExist(saveFolder)) {	
+			Document doc = URLTools.getURLContent(galleryURL);
 			Elements gallery = doc.select(".ship-slideshow .slide img");
-			String[][] urls = parseImageUrl(gallery);
+			String[][] urls = URLTools.parseImageUrl(gallery);
 			
 			int i = 0;
 			for (String[] img : urls) {
-				if (!RSIDownloader.saveImageToDisk(img[1], savePath + "/" + img[0])) {
+				if (!this.saveImageToDisk(img[1], savePath + "/" + img[0])) {
 					System.err.println("Error downloading " + img[0]);
 				} else {
 					i++;
 				}
 			}
-			System.out.println(folder + " Downloaded " + i + " images");
+			
+			String curStatus = "Downloaded " + URLTools.getLastSubstring(galleryURL) + " (" + i + " images)";
+			System.out.println(curStatus);
 			return true;	
 		}
 		
 		return false;
 	}
 
-	/**
-	 * returns the sourcecode from one url
-	 * @param contentURL URL to get the content from
-	 * @return Document class
-	 */
-	private static Document getURLContent(String contentURL) {
-		Document doc = null;
-		try {
-			doc = Jsoup.connect(contentURL).get();
-		} catch (IOException e) {
-			System.err.println("Problem while fetching the URL");
-		}
-		return doc;
-	}
-
-	/**
-	 * extracts the src from the elements and adds the url if needed, generates hte filename
-	 * @param gallery all elements from the ship gallery
-	 * @return String[][] array with 0 name and 1 abs url
-	 */
-	private static String[][] parseImageUrl(Elements gallery) {
-		String[][] urls = new String[gallery.size()][2];
-		
-		int i = 0;
-		for (Element img : gallery) {
-			String tmp = img.attr("src");
-			tmp = tmp.replaceAll("store_slideshow_large", "source");
-			if (!tmp.toLowerCase().contains(RSIDownloader.RSIURL)) {
-				tmp = RSIDownloader.RSI_PROTO + RSIDownloader.RSIURL + tmp;				
-			}
-			urls[i][0] = RSIDownloader.getLastSubstring(tmp);
-			urls[i][1] = tmp;
-			i++;
-		}
-		return urls;
-	}
-
-	/**
-	 * creates the given savefolder if needed
-	 * @param saveFolder save folder to check and create
-	 * @return true on success false on failure
-	 */
-	private static boolean createSaveFolderIfNotExistent(File saveFolder) {
-		if (!saveFolder.exists()) {
-			if (!saveFolder.mkdirs()) {
-				System.err.println("Creating the Folder failed. Run as Administrator.");
-				return false;
-			}
-		}
-		return true;
-	}
-
-	/**
-	 * hacky approach to check if the given url is valid
-	 * @param rawURL URL to check
-	 * @return true if valid false if invalid
-	 */
-	private static boolean isValidUrl(String rawURL) {
-		URL u;
-		try {
-			u = new URL(rawURL);
-			u.getProtocol();
-			return true;
-		} catch (MalformedURLException e) {
-			System.err.println("This is not a valid URL!");
-			return false;
-		}
-	}
-
-	/**
-	 * returns the last / substring from an url
-	 * @param tmp url to get the last substring from
-	 * @return null if null substring in not empty
-	 */
-	private static String getLastSubstring(String tmp) {
-		if (tmp == null) {
-			return null;
-		}
-		return tmp.substring( tmp.lastIndexOf('/') + 1, tmp.length() );
-	}
-	
-	/**
-	 * generates a random alphanumeric string with a given length
-	 * @param len length of the string
-	 * @return random alphanumeric substring with given length
-	 */
-	private static String randomString( int len ) {
-
-		SecureRandom rnd = new SecureRandom();
-		StringBuilder sb = new StringBuilder( len );
-        
-		for ( int i = 0; i < len; i++ ) {
-        	sb.append( RSIDownloader.ALNUM_SEQ.charAt( rnd.nextInt(RSIDownloader.ALNUM_SEQ.length()) ) );
-        }
-        return sb.toString();
-    }
 	
 	/**
 	 * saves the image to disk, adds a random substring if the image exist
@@ -314,7 +211,7 @@ public class RSIDownloader {
 	 * @param filePath path to save the image to
 	 * @return true on success
 	 */
-    private static boolean saveImageToDisk(String imageUrl, String filePath) {
+    private boolean saveImageToDisk(String imageUrl, String filePath) {
         InputStream inputStream = null;
         OutputStream outputStream = null;
  
@@ -322,9 +219,9 @@ public class RSIDownloader {
             URL url = new URL(imageUrl);
             inputStream = url.openStream();
             if (new File(filePath).exists()) {
-            	String extension = getFileExtension(filePath);
+            	String extension = FileTools.getFileExtension(filePath);
             	filePath = filePath.replaceAll("." + extension, "");
-            	filePath = filePath + "-" + RSIDownloader.randomString(5) + "." + extension;
+            	filePath = filePath + "-" + RandomString.getAlNum(5) + "." + extension;
 			}
             outputStream = new FileOutputStream(filePath);
  
@@ -350,22 +247,4 @@ public class RSIDownloader {
         }
         return false;
     }
-
-    /**
-     * returns the file extension from a given path
-     * @param filePath path of the file
-     * @return fileextension
-     */
-	private static String getFileExtension(String filePath) {
-		String extension = "";
-
-		int i = filePath.lastIndexOf('.');
-		int p = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
-
-		if (i > p) {
-		    extension = filePath.substring(i + 1);
-		}
-
-		return extension;
-	}
 }
