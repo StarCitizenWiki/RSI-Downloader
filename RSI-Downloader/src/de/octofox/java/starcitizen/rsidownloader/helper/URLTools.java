@@ -33,7 +33,7 @@ public class URLTools {
 		}
 		return urls;
 	}
-	
+
 	
 	/**
 	 * returns the last / substring from an url

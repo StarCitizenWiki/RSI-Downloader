@@ -1,40 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.text.*?>
-<?import javafx.scene.control.*?>
-<?import javafx.collections.*?>
-<?import javafx.scene.layout.*?>
-<?import javafx.lang.*?>
-<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.ToolBar?>
 <?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
 
- 
-<AnchorPane prefHeight="240.0" prefWidth="350.0" 
-	xmlns="http://javafx.com/javafx/8"
-	xmlns:fx="http://javafx.com/fxml/1"
-	fx:controller="de.octofox.java.starcitizen.rsidownloader.gui.GUIController">
+<AnchorPane prefHeight="600.0" prefWidth="500.0" xmlns="http://javafx.com/javafx/8.0.60" xmlns:fx="http://javafx.com/fxml/1" fx:controller="de.octofox.java.starcitizen.rsidownloader.gui.GUIController">
 	
-	<ToolBar
-		AnchorPane.leftAnchor="0.0"
-		AnchorPane.rightAnchor="0.0"
-		prefHeight="40.0"
-		prefWidth="270.0"
-		xmlns:fx="http://javafx.com/fxml/1"
-		xmlns="http://javafx.com/javafx/8">
-		<Button text="Select all" fx:id="select_all_button" onAction="#selectAll" />
-		<Button text="Select none" fx:id="select_none_button" onAction="#selectNone" />
-		<Label text="" fx:id="status_label" />
+	<ToolBar prefHeight="40.0" prefWidth="270.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1">
+		<Button fx:id="select_all_button" onAction="#selectAll" text="Select all" />
+		<Button fx:id="select_none_button" onAction="#selectNone" text="Select none" />
 		<Pane HBox.hgrow="ALWAYS" />
-		<Button text="Download" fx:id="download_button" onAction="#downloadSelection" />
+		<Button fx:id="download_button" onAction="#downloadSelection" text="Download" />
 	</ToolBar>
-
-	<children>	
-		<ListView
-			fx:id="listView"
-			AnchorPane.bottomAnchor="0.0"
-			AnchorPane.topAnchor="40.0"
-			AnchorPane.leftAnchor="0.0"
-			AnchorPane.rightAnchor="0.0"
-			prefWidth="270.0" />
-	</children>
+   <ListView fx:id="listView" layoutY="40.0" prefHeight="200.0" prefWidth="200.0" AnchorPane.bottomAnchor="40.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="40.0" />
+   <Label fx:id="status_label" layoutX="236.0" layoutY="236.0" prefHeight="40.0" style="-fx-label-padding: 0 0 0 5; -fx-border-color: #ddd; -fx-border-width: 1px 0 0 0; -fx-background-color: #eee;" text="Waiting..." textFill="#333333" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" />
 </AnchorPane>
