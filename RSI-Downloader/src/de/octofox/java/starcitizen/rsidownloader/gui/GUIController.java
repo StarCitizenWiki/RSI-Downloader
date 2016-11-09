@@ -82,7 +82,7 @@ public class GUIController implements Initializable {
 
     	GalleryURL[] urls;
     	if (new File(RSIDownloader.SOURCE_FILE).exists()) {
-    		urls = dl.getURLsFromWeb(RSIDownloader.SOURCE_FILE);
+    		urls = dl.getURLsFromFile(RSIDownloader.SOURCE_FILE);
 		} else {
 			urls = dl.getURLsFromWeb(RSIDownloader.SHIPURL + "?action=raw");
 		}
