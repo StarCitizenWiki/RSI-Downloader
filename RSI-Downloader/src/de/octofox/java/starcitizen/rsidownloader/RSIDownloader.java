@@ -13,6 +13,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import org.jsoup.nodes.Document;
@@ -35,25 +37,52 @@ public class RSIDownloader {
 
 	private static final int BYTELEN = 2048;
 
+	/**
+	 * The current programms dir
+	 */
 	private static final String CWD = System.getProperty("user.dir");
 
+	/**
+	 * URL from where the Gallery URLs will be loaded
+	 */
 	public static final String SHIPURL = "https://star-citizen.wiki/Benutzer:FoXFTW/Ships.txt";
+
+	/**
+	 * Filename of the local URL list
+	 */
 	public static final String SOURCE_FILE = "ships.txt";
 
 	private String saveFolder;
+
+	/**
+	 * GUIController, needed to set the content of the statuslabel
+	 */
 	private GUIController gc;
 
+	/**
+	 * Constructor
+	 * @param gc GUIController
+	 */
 	public RSIDownloader(GUIController gc) {
 		this.gc = gc;
-		// TODO
+		// TODO Set the Savefolder in the GUI
 		this.setSaveFolder("");
 	}
 
+	/**
+	 * Sets the Savepath, adds a / if the folder is not empty
+	 * @param path Subfolder in the current working dir
+	 */
 	public void setSaveFolder(String path) {
 		this.saveFolder = RSIDownloader.CWD + (path.isEmpty() ? "" : "/" + path) + "/";
 	}
 
 
+	/**
+	 * Reads the ships.txt and adds each line as an URL
+	 * @param sourceFile filename of the sourcefile
+	 * @return GalleryURL Array with all URLs
+	 */
 	public GalleryURL[] getURLsFromFile(String sourceFile) {
 		try {
 			BufferedReader br = new BufferedReader(new FileReader(this.saveFolder + sourceFile));
@@ -74,6 +103,11 @@ public class RSIDownloader {
 	}
 
 
+	/**
+	 * Reads the online URL List and adds each line as an URL
+	 * @param sourceFile filename of the sourcefile
+	 * @return GalleryURL Array with all URLs
+	 */
 	public GalleryURL[] getURLsFromWeb(String sourceURL) {
 		try {
 			URL u = new URL(sourceURL);
@@ -86,7 +120,6 @@ public class RSIDownloader {
 				urls[i] = new GalleryURL(url);
 				i++;
 			}
-		    this.gc.status.set("URLs loaded");
 		    return urls;
 		} catch (MalformedURLException e) {
 			// TODO Auto-generated catch block
@@ -99,6 +132,11 @@ public class RSIDownloader {
 	}
 
 
+	/**
+	 * creates an ArrayList from a given BufferedReader
+	 * @param br Reader of either source file or online list
+	 * @return ArrayList with all URLs as strings
+	 */
 	private List<String> makeListFromReader(BufferedReader br) {
 		List<String> shipURLs = new ArrayList<String>();
 
@@ -111,6 +149,14 @@ public class RSIDownloader {
 				}
 		    } while (line != null);
 
+		    Collections.sort(shipURLs, new Comparator<String>() {
+		        @Override
+		        public int compare(String s1, String s2) {
+		        	s1 = URLTools.getLastSubstring(s1);
+		        	s2 = URLTools.getLastSubstring(s2);
+		            return s1.compareToIgnoreCase(s2);
+		        }
+		    });
 		    return shipURLs;
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -121,19 +167,45 @@ public class RSIDownloader {
 
 	/**
 	 * starts the download for each array entry
-	 * @param urlList
-	 * @param saveFolder
+	 * @param urlList String Array with all URLs
+	 * @param saveFolder folder to save to
 	 */
 	public void startDownload(String[] urlList) {
-		for (String string : urlList) {
-	        String folder = URLTools.getLastSubstring(string);
-			if (folder != null) {
-    			downloadImages(string, saveFolder + folder);
-			}
-		}
+		Task<Void> task = new Task<Void>() {
+    		@Override
+    		public Void call() throws Exception {
+	    		for (String string : urlList) {
+	    	        String folder = URLTools.getLastSubstring(string);
+	    			if (folder != null) {
+			    		Platform.runLater(new Runnable() {
+				    		@Override
+				    		public void run() {
+				    			gc.status.set("Downloading " + folder);
+				    		}
+			    		});
+	    				downloadImages(string, saveFolder + folder);
+	    			}
+	    		}
+	    		Platform.runLater(new Runnable() {
+		    		@Override
+		    		public void run() {
+		    			gc.status.set("Download finished");
+		    		}
+	    		});
+				return null;
+    		}
+	    };
+		Thread th = new Thread(task);
+		th.setDaemon(true);
+		th.start();
 	}
 
 
+	/**
+	 * Downloads all images from the given Gallery URL
+	 * @param galleryURL Gallery URL
+	 * @param savePath path to save to
+	 */
 	private void downloadImages(String galleryURL, String savePath) {
 		File saveFolder = new File(savePath);
 
@@ -142,25 +214,17 @@ public class RSIDownloader {
 			Elements gallery = doc.select(".ship-slideshow .slide img");
 			String[][] urls = URLTools.parseImageUrl(gallery);
 
+			int i = 0;
 			for (String[] img : urls) {
-		    	Task<Void> task = new Task<Void>() {
+    			final int j = i + 1;
+	    		Platform.runLater(new Runnable() {
 		    		@Override
-		    		public Void call() throws Exception {
-			    		Platform.runLater(new Runnable() {
-				    		@Override
-				    		public void run() {
-			    				saveImageToDisk(img[1], savePath + "/" + img[0]);
-				    		}
-			    		});
-						return null;
+		    		public void run() {
+		    			gc.status.set("Downloading " + URLTools.getLastSubstring(savePath) + " (" + j + ")");
 		    		}
-			    };
-				Thread th = new Thread(task);
-				th.setDaemon(true);
-				th.start();
-			    task.setOnSucceeded(e -> {
-			    	gc.status.set("Download finished");
-			    });
+	    		});
+				saveImageToDisk(img[1], savePath + "/" + img[0]);
+				i++;
 			}
 		}
 	}
