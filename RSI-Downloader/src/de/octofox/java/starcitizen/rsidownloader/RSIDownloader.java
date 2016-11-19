@@ -207,9 +207,9 @@ public class RSIDownloader {
 	 * @param savePath path to save to
 	 */
 	private void downloadImages(String galleryURL, String savePath) {
-		File saveFolder = new File(savePath);
+		File shipSaveFolder = new File(savePath);
 
-		if (Validate.url(galleryURL) && FileTools.createSaveFolderIfNotExist(saveFolder)) {
+		if (Validate.url(galleryURL) && FileTools.createSaveFolderIfNotExist(shipSaveFolder)) {
 			Document doc = URLTools.getURLContent(galleryURL);
 			Elements gallery = doc.select(".ship-slideshow .slide img");
 			String[][] urls = URLTools.parseImageUrl(gallery);

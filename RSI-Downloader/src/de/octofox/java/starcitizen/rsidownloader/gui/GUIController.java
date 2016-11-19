@@ -8,6 +8,8 @@ import de.octofox.java.starcitizen.rsidownloader.GalleryURL;
 import de.octofox.java.starcitizen.rsidownloader.RSIDownloader;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
@@ -17,16 +19,20 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.SelectionMode;
+import javafx.scene.control.TextField;
 
 public class GUIController implements Initializable {
 	/**
 	 * GUI Elements
 	 */
 	@FXML private ListView<GalleryURL> listView;
-    @FXML private Button download_button;
-    @FXML private Button select_all_button;
-    @FXML private Button select_none_button;
-    @FXML private Label status_label;
+    @FXML private Button downloadButton;
+    @FXML private Button selectAllButton;
+    @FXML private Button selectNoneButton;
+    @FXML private Label statusLabel;
+    @FXML private TextField searchInput;
+
+    private ObservableList<GalleryURL> ships;
 
     /**
      * Label Status
@@ -47,8 +53,13 @@ public class GUIController implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
     	this.dl = new RSIDownloader(this);
     	this.status = new SimpleStringProperty();
-    	status_label.textProperty().bind(this.status);
-    	listView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+    	this.statusLabel.textProperty().bind(this.status);
+
+    	this.searchInput.textProperty().addListener(
+			(ChangeListener<String>) (observable, oldVal, newVal) -> searchList(oldVal, newVal)
+    	);
+
+    	this.listView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 
     	Task<Void> task = new Task<Void>() {
     		@Override
@@ -78,18 +89,19 @@ public class GUIController implements Initializable {
      * adds each URL to the ListView
      */
     private void initList() {
-    	ObservableList<GalleryURL> items = listView.getItems();
+    	ObservableList<GalleryURL> items = this.listView.getItems();
 
     	GalleryURL[] urls;
     	if (new File(RSIDownloader.SOURCE_FILE).exists()) {
-    		urls = dl.getURLsFromFile(RSIDownloader.SOURCE_FILE);
+    		urls = this.dl.getURLsFromFile(RSIDownloader.SOURCE_FILE);
 		} else {
-			urls = dl.getURLsFromWeb(RSIDownloader.SHIPURL + "?action=raw");
+			urls = this.dl.getURLsFromWeb(RSIDownloader.SHIPURL + "?action=raw");
 		}
 
         for (GalleryURL galleryURL : urls) {
         	items.add(galleryURL);
 		}
+        this.ships = items;
     }
 
 
@@ -97,7 +109,7 @@ public class GUIController implements Initializable {
      * selects the whole list
      */
     public void selectAll() {
-    	listView.getSelectionModel().selectAll();
+    	this.listView.getSelectionModel().selectAll();
     }
 
 
@@ -105,7 +117,40 @@ public class GUIController implements Initializable {
      * deselects the whole list
      */
     public void selectNone() {
-    	listView.getSelectionModel().clearSelection();
+    	this.listView.getSelectionModel().clearSelection();
+    }
+
+
+    /**
+     * allows to search the list "google style"
+     * splits the input on whitespace and searches by substrings
+     * restores everything on empty field or if newVal < oldVal (backspace)
+     * @param oldVal old search string
+     * @param newVal new search string
+     */
+    public void searchList(String oldVal, String newVal) {
+        if ( oldVal != null && (newVal.length() < oldVal.length()) ) {
+            this.listView.setItems( this.ships );
+        }
+
+        String[] parts = newVal.toUpperCase().split(" ");
+
+        ObservableList<GalleryURL> subentries = FXCollections.observableArrayList();
+        for ( GalleryURL entry: this.listView.getItems() ) {
+            boolean match = true;
+            GalleryURL entryText = entry;
+            for ( String part: parts ) {
+                if ( !entryText.toString().toUpperCase().contains(part) ) {
+                    match = false;
+                    break;
+                }
+            }
+
+            if ( match ) {
+                subentries.add(entryText);
+            }
+        }
+        this.listView.setItems(subentries);
     }
 
 
@@ -114,7 +159,7 @@ public class GUIController implements Initializable {
      * @param event
      */
     public void downloadSelection(ActionEvent event) {
-    	ObservableList<GalleryURL> items = listView.getSelectionModel().getSelectedItems();
+    	ObservableList<GalleryURL> items = this.listView.getSelectionModel().getSelectedItems();
     	String[] urls = new String[items.size()];
 
     	int i = 0;

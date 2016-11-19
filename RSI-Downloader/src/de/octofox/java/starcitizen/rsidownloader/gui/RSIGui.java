@@ -7,19 +7,18 @@ import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
-public class RSI_Gui extends Application {
+public class RSIGui extends Application {
 	@Override
 	public void start(Stage primaryStage) {
 		try {
-			Parent root = FXMLLoader.load(getClass().getResource("RSI_Gui.fxml"));
+			Parent root = FXMLLoader.load(getClass().getResource("RSIGui.fxml"));
 
-			Scene scene = new Scene(root,300,400);
-			scene.getStylesheets().add(getClass().getResource("application.css").toExternalForm());
+			Scene scene = new Scene(root);
 			primaryStage.setTitle("RSI Downloader by FoXFTW");
-			primaryStage.getIcons().add(new Image(RSI_Gui.class.getResourceAsStream("files/Wiki_Logo.png")));
+			primaryStage.getIcons().add(new Image(RSIGui.class.getResourceAsStream("files/Wiki_Logo.png")));
 			primaryStage.setScene(scene);
 			primaryStage.show();
-		} catch(Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}

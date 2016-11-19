@@ -28,7 +28,7 @@ public class GalleryURL {
 	public GalleryURL(String galleryURL) {
 		if (Validate.url(galleryURL)) {
 			this.url = galleryURL;
-			this.name = URLTools.getLastSubstring(galleryURL);
+			this.name = URLTools.getLastSubstring(galleryURL).replace('-', ' ');
 		}
 	}
 
